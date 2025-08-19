@@ -6,7 +6,7 @@ import pandas as pd
 
 # Page setup
 st.set_page_config(page_title="Fixed-Bed Adsorption Simulator", layout="wide")
-st.title("🧪 Fixed-Bed Adsorption Column Simulator")
+st.title("🧪 Fixed-Bed Adsorption Simulator")
 st.write("""
 Explore breakthrough behavior in a fixed-bed column with Langmuir adsorption.
 Compare up to 5 simulations with different operating conditions.
