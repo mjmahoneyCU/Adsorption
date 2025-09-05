@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp, simpson
 import pandas as pd
-import os
 from PIL import Image
+import os
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Fixed-Bed Adsorption Simulator", layout="wide")
@@ -13,15 +13,6 @@ st.write("""
 Explore breakthrough behavior in a fixed-bed column with Langmuir adsorption.
 Compare up to 5 simulations with different operating conditions.
 """)
-
-# --- IMAGE DISPLAY ---
-img_path = os.path.join(os.path.dirname(__file__), "column.png")
-image = Image.open(img_path)
-
-# --- LAYOUT WITH COLUMN IMAGE TO THE LEFT OF PLOT ---
-col1, col2 = st.columns([1, 3], gap="large")
-with col1:
-    st.image(image, use_container_width=True)
 
 # --- PARAMETER DESCRIPTIONS ---
 with st.expander("ℹ️ Simulation Parameter Descriptions", expanded=False):
@@ -103,69 +94,80 @@ if num_sims > 1:
     should_run = st.button("Run Simulation")
 
 if should_run:
-    fig, ax1 = plt.subplots(figsize=(10, 5))
-    summary_data = []
+    # --- LAYOUT WITH IMAGE AND PLOT ---
+    col1, col2 = st.columns([1, 3])
 
-    for i, p in enumerate(profiles):
-        sol = solve_ivp(
-            make_model(p['v'], p['DL'], p['K'], p['KL'], p['qmax'], p['c0']),
-            [0, sim_time],
-            initial_conditions(nz, p['c0']),
-            t_eval=t_eval,
-            method="BDF",
-            rtol=1e-5,
-            atol=1e-6
-        )
+    with col1:
+        try:
+            image = Image.open("column.png")
+            st.image(image, caption="Fixed-Bed Column", use_container_width=True)
+        except FileNotFoundError:
+            st.warning("Column image not found. Please check the file path and name.")
 
-        c_out = np.maximum(sol.y[nz - 1, :], 0)
-        ax1.plot(sol.t, c_out, label=f"Sim {i+1}")
+    with col2:
+        fig, ax1 = plt.subplots(figsize=(10, 5))
+        summary_data = []
 
-        total_input_mass = p['c0'] * p['flow_rate'] * sol.t[-1]
-        total_output_mass = simpson(y=c_out * p['flow_rate'], x=sol.t)
-        mass_bound = total_input_mass - total_output_mass
+        for i, p in enumerate(profiles):
+            sol = solve_ivp(
+                make_model(p['v'], p['DL'], p['K'], p['KL'], p['qmax'], p['c0']),
+                [0, sim_time],
+                initial_conditions(nz, p['c0']),
+                t_eval=t_eval,
+                method="BDF",
+                rtol=1e-5,
+                atol=1e-6
+            )
 
-        resin_volume = column_volume * (1 - porosity)
-        max_binding_capacity = p['qmax'] * resin_volume
-        dynamic_binding_capacity = mass_bound / column_volume
+            c_out = np.maximum(sol.y[nz - 1, :], 0)
+            ax1.plot(sol.t, c_out, label=f"Sim {i+1}")
 
-        breakthrough_threshold = 0.1 * p['c0']
-        idx_bt = np.argmax(c_out >= breakthrough_threshold)
-        if idx_bt > 0:
-            t_bt = np.interp(breakthrough_threshold, [c_out[idx_bt - 1], c_out[idx_bt]], [sol.t[idx_bt - 1], sol.t[idx_bt]])
-            t_bt_eval = sol.t[sol.t <= t_bt]
-            c_bt_eval = np.interp(t_bt_eval, sol.t, c_out)
-            mass_in_bt = p['c0'] * p['flow_rate'] * t_bt
-            mass_out_bt = simpson(y=c_bt_eval * p['flow_rate'], x=t_bt_eval)
-            dbc_at_bt = (mass_in_bt - mass_out_bt) / column_volume
-        else:
-            t_bt = np.nan
-            dbc_at_bt = np.nan
+            total_input_mass = p['c0'] * p['flow_rate'] * sol.t[-1]
+            total_output_mass = simpson(y=c_out * p['flow_rate'], x=sol.t)
+            mass_bound = total_input_mass - total_output_mass
 
-        summary_data.append({
-            "Simulation": f"Sim {i+1}",
-            "Flow Rate (mL/min)": round(p['flow_rate'], 2),
-            "DL (cm²/min)": round(p['DL'], 2),
-            "K (1/min)": round(p['K'], 2),
-            "KL (mL/mg)": round(p['KL'], 2),
-            "qmax (mg/mL)": round(p['qmax'], 2),
-            "c₀ (mg/mL)": round(p['c0'], 2),
-            "Resin Volume (mL)": round(resin_volume, 2),
-            "Max Capacity (mg)": round(max_binding_capacity, 2),
-            "Total Mass In (mg)": round(total_input_mass, 2),
-            "Total Mass Out (mg)": round(total_output_mass, 2),
-            "Final Mass Bound (mg)": round(mass_bound, 2),
-            "Dynamic Binding Capacity (mg/mL)": round(dynamic_binding_capacity, 2),
-            "Breakthrough Time (min)": round(t_bt, 2),
-            "DBC at 10% Breakthrough (mg/mL)": round(dbc_at_bt, 2)
-        })
+            resin_volume = column_volume * (1 - porosity)
+            max_binding_capacity = p['qmax'] * resin_volume
+            dynamic_binding_capacity = mass_bound / column_volume
 
-    ax1.set_title("Breakthrough Curves")
-    ax1.set_ylabel("Outlet Concentration (mg/mL)")
-    ax1.set_xlabel("Time (min)")
-    ax1.grid(True)
-    ax1.legend()
-    st.pyplot(fig)
-    plt.close(fig)
+            breakthrough_threshold = 0.1 * p['c0']
+            idx_bt = np.argmax(c_out >= breakthrough_threshold)
+            if idx_bt > 0:
+                t_bt = np.interp(breakthrough_threshold, [c_out[idx_bt - 1], c_out[idx_bt]], [sol.t[idx_bt - 1], sol.t[idx_bt]])
+                t_bt_eval = sol.t[sol.t <= t_bt]
+                c_bt_eval = np.interp(t_bt_eval, sol.t, c_out)
+                mass_in_bt = p['c0'] * p['flow_rate'] * t_bt
+                mass_out_bt = simpson(y=c_bt_eval * p['flow_rate'], x=t_bt_eval)
+                dbc_at_bt = (mass_in_bt - mass_out_bt) / column_volume
+            else:
+                t_bt = np.nan
+                dbc_at_bt = np.nan
+
+            summary_data.append({
+                "Simulation": f"Sim {i+1}",
+                "Flow Rate (mL/min)": round(p['flow_rate'], 2),
+                "DL (cm²/min)": round(p['DL'], 2),
+                "K (1/min)": round(p['K'], 2),
+                "KL (mL/mg)": round(p['KL'], 2),
+                "qmax (mg/mL)": round(p['qmax'], 2),
+                "c₀ (mg/mL)": round(p['c0'], 2),
+                "Resin Volume (mL)": round(resin_volume, 2),
+                "Max Capacity (mg)": round(max_binding_capacity, 2),
+                "Total Mass In (mg)": round(total_input_mass, 2),
+                "Total Mass Out (mg)": round(total_output_mass, 2),
+                "Final Mass Bound (mg)": round(mass_bound, 2),
+                "Dynamic Binding Capacity (mg/mL)": round(dynamic_binding_capacity, 2),
+                "Breakthrough Time (min)": round(t_bt, 2),
+                "DBC at 10% Breakthrough (mg/mL)": round(dbc_at_bt, 2)
+            })
+
+        ax1.set_title("Breakthrough Curves")
+        ax1.set_ylabel("Outlet Concentration (mg/mL)")
+        ax1.set_xlabel("Time (min)")
+        ax1.grid(True)
+        ax1.legend()
+        st.pyplot(fig)
+        plt.close(fig)
 
     # --- SUMMARY TABLE ---
     st.subheader("📊 Simulation Summary Table")
@@ -179,29 +181,17 @@ with st.expander("🧠 Making Sense of the Simulations", expanded=False):
 Use these guiding questions to help you understand breakthrough behavior in fixed-bed systems. Try the suggested simulations and observe how the output curves and summary statistics respond.
 
 1. **How does increasing the flow rate affect breakthrough time and dynamic binding capacity?**  
-   _Try comparing simulations with flow rates of 5, 10, and 20 mL/min, keeping other parameters constant._  
    → Look at **breakthrough time** and **DBC at 10% breakthrough**.
 
 2. **What is the impact of increasing the adsorption rate constant (K)?**  
-   _Try K values of 0.5, 1.0, and 5.0 1/min._  
    → Does a faster rate delay breakthrough or just sharpen the curve?
 
 3. **How does Langmuir constant (KL) influence breakthrough?**  
-   _Try KL = 0.01, 0.1, and 1.0 mL/mg._  
    → Which values reflect tight binding? What happens at low vs. high KL?
 
 4. **Does increasing qmax always increase dynamic binding capacity?**  
-   _Try values from 20 to 80 mg/mL._  
    → Under fast flow or low affinity, high qmax may not be fully utilized.
 
 5. **How does axial dispersion affect curve sharpness?**  
-   _Try DL = 0.01, 0.05, and 0.1 cm²/min._  
    → What happens to the slope and width of the breakthrough curve?
-
----
-
-For each simulation, take note of:
-- Time to breakthrough (10% c₀)
-- Final mass bound and max theoretical capacity
-- Shape of the breakthrough curve
 """)
