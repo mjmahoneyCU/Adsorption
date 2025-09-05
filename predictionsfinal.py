@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp, simpson
 import pandas as pd
+import os
+from PIL import Image
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Fixed-Bed Adsorption Simulator", layout="wide")
@@ -11,6 +13,15 @@ st.write("""
 Explore breakthrough behavior in a fixed-bed column with Langmuir adsorption.
 Compare up to 5 simulations with different operating conditions.
 """)
+
+# --- IMAGE DISPLAY ---
+img_path = os.path.join(os.path.dirname(__file__), "column.png")
+image = Image.open(img_path)
+
+# --- LAYOUT WITH COLUMN IMAGE TO THE LEFT OF PLOT ---
+col1, col2 = st.columns([1, 3], gap="large")
+with col1:
+    st.image(image, use_container_width=True)
 
 # --- PARAMETER DESCRIPTIONS ---
 with st.expander("ℹ️ Simulation Parameter Descriptions", expanded=False):
@@ -153,12 +164,7 @@ if should_run:
     ax1.set_xlabel("Time (min)")
     ax1.grid(True)
     ax1.legend()
-
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        st.image("column.png", use_container_width=True)
-    with col2:
-        st.pyplot(fig)
+    st.pyplot(fig)
     plt.close(fig)
 
     # --- SUMMARY TABLE ---
@@ -191,8 +197,6 @@ Use these guiding questions to help you understand breakthrough behavior in fixe
 5. **How does axial dispersion affect curve sharpness?**  
    _Try DL = 0.01, 0.05, and 0.1 cm²/min._  
    → What happens to the slope and width of the breakthrough curve?
-   → Be sure to try few low flow rates
-
 
 ---
 
