@@ -99,7 +99,7 @@ if should_run:
 
     with col1:
         try:
-            image = Image.open("column.png")
+            image = Image.open("Column.png")
             st.image(image, caption="Fixed-Bed Column", use_container_width=True)
         except FileNotFoundError:
             st.warning("Column image not found. Please check the file path and name.")
